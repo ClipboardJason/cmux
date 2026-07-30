@@ -2870,6 +2870,21 @@ struct ContentView: View {
             attemptCommandPaletteFocusRestoreIfNeeded(focusTransactionId: focusTransactionId)
         })
 
+        view = AnyView(view.onReceive(NotificationCenter.default.publisher(for: .terminalPortalVisibilityDidChange)) { notification in
+            let hostedView = notification.object as? GhosttySurfaceScrollView
+            let surfaceWorkspaceId = notification.userInfo?[GhosttyNotificationKey.tabId] as? UUID
+            guard Self.shouldCompleteWorkspaceHandoffForVisibleSurface(
+                isSurfaceVisible: hostedView?.isVisibleInUI ?? false,
+                surfaceWorkspaceId: surfaceWorkspaceId,
+                selectedWorkspaceId: tabManager.selectedTabId,
+                hasRetiringWorkspace: retiringWorkspaceId != nil
+            ), let surfaceWorkspaceId else { return }
+            completeWorkspaceHandoffIfNeeded(
+                focusedTabId: surfaceWorkspaceId,
+                reason: "incoming_surface_visible"
+            )
+        })
+
         view = AnyView(view.onReceive(NotificationCenter.default.publisher(for: .browserDidBecomeFirstResponderWebView)) { notification in
             guard let webView = notification.object as? WKWebView,
                   let selectedTabId = tabManager.selectedTabId,
@@ -3542,6 +3557,27 @@ struct ContentView: View {
         guard focusedTabId == tabManager.selectedTabId else { return }
         guard retiringWorkspaceId != nil else { return }
         completeWorkspaceHandoff(reason: reason)
+    }
+
+    /// Whether a portal visibility change means the incoming workspace has taken
+    /// over the screen and the retiring one must stop presenting its pixels.
+    ///
+    /// The retiring workspace deliberately keeps rendering during a handoff so a
+    /// switch never flashes empty, but it is released on focus convergence — which
+    /// lands *after* the incoming workspace starts painting. Both then composite
+    /// into the same portal rect and the previous workspace's text shows through
+    /// (https://github.com/manaflow-ai/cmux/issues/1634). A surface of the newly
+    /// selected workspace becoming visible is the exact moment the retiring pixels
+    /// stop being needed.
+    static func shouldCompleteWorkspaceHandoffForVisibleSurface(
+        isSurfaceVisible: Bool,
+        surfaceWorkspaceId: UUID?,
+        selectedWorkspaceId: UUID?,
+        hasRetiringWorkspace: Bool
+    ) -> Bool {
+        guard isSurfaceVisible, hasRetiringWorkspace else { return false }
+        guard let surfaceWorkspaceId, let selectedWorkspaceId else { return false }
+        return surfaceWorkspaceId == selectedWorkspaceId
     }
 
     private func canCompleteWorkspaceHandoffImmediately(for workspaceId: UUID) -> Bool {

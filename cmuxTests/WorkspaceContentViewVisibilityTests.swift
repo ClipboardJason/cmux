@@ -297,6 +297,61 @@ final class WorkspaceContentViewVisibilityTests {
     }
 
     @Test
+    func testVisibleIncomingSurfaceReleasesRetiringWorkspace() {
+        let selected = UUID()
+        #expect(
+            ContentView.shouldCompleteWorkspaceHandoffForVisibleSurface(
+                isSurfaceVisible: true,
+                surfaceWorkspaceId: selected,
+                selectedWorkspaceId: selected,
+                hasRetiringWorkspace: true
+            ),
+            "Once the incoming workspace paints, the retiring workspace must stop presenting or both composite into the same portal rect."
+        )
+    }
+
+    @Test
+    func testRetiringWorkspaceSurfaceDoesNotCompleteHandoff() {
+        #expect(
+            !ContentView.shouldCompleteWorkspaceHandoffForVisibleSurface(
+                isSurfaceVisible: true,
+                surfaceWorkspaceId: UUID(),
+                selectedWorkspaceId: UUID(),
+                hasRetiringWorkspace: true
+            ),
+            "A surface belonging to another workspace must not end the handoff."
+        )
+    }
+
+    @Test
+    func testHiddenIncomingSurfaceKeepsRetiringWorkspaceVisible() {
+        let selected = UUID()
+        #expect(
+            !ContentView.shouldCompleteWorkspaceHandoffForVisibleSurface(
+                isSurfaceVisible: false,
+                surfaceWorkspaceId: selected,
+                selectedWorkspaceId: selected,
+                hasRetiringWorkspace: true
+            ),
+            "A surface going hidden must not end the handoff; that is what keeps a switch from flashing empty."
+        )
+    }
+
+    @Test
+    func testVisibleSurfaceWithoutHandoffIsIgnored() {
+        let selected = UUID()
+        #expect(
+            !ContentView.shouldCompleteWorkspaceHandoffForVisibleSurface(
+                isSurfaceVisible: true,
+                surfaceWorkspaceId: selected,
+                selectedWorkspaceId: selected,
+                hasRetiringWorkspace: false
+            ),
+            "Ordinary reveals outside a handoff must not run handoff completion work."
+        )
+    }
+
+    @Test
     func testPanelVisibleInUIReturnsFalseWhenWorkspaceHidden() {
         #expect(
             !WorkspaceContentView.panelVisibleInUI(
