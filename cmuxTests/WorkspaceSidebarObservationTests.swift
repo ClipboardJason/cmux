@@ -103,7 +103,8 @@ struct WorkspaceSidebarObservationTests {
         let snapshot = workspace.customSidebarWorkspaceSnapshot(
             index: 0,
             selectedId: workspace.id,
-            unreadCount: 0
+            unreadCount: 0,
+            ref: nil
         )
 
         #expect(snapshot.statusEntries == expected)
